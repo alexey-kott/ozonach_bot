@@ -65,7 +65,7 @@ async def post_message(message: Message):
             response_data = await response.read()
             print(response_data)
 
-    await message.reply(message.text)
+    await message.reply('Message sent')
 
 
 if __name__ == "__main__":
