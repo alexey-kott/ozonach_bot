@@ -27,6 +27,16 @@ HEADERS = {
 }
 
 
+@dp.message_handler(commands=['start'])
+async def start(message: Message):
+    await message.reply("You can send me a message and I will forward it to 03ch anonymously")
+
+
+@dp.message_handler(commands=['ping'])
+async def ping(message: Message):
+    await message.reply("I'm alive")
+
+
 @dp.message_handler(commands=['delete'])
 async def delete_message(message: Message):
     command, ts = message.text.split(' ')
