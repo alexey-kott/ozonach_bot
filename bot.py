@@ -11,6 +11,7 @@ from aiohttp import BasicAuth, ClientSession, FormData
 from aiogram import Bot, Dispatcher
 from aiogram.utils import executor
 from peewee import SqliteDatabase, Model, BooleanField, CharField
+from PIL import Image
 
 from config import BOT_TOKEN, SLACK_AUTH_HEADER, SLACK_BOT_TOKEN, OZONACH_CHANNEL, \
     PROXY_HOST, PROXY_PORT, PROXY_USERNAME, PROXY_PASS
@@ -115,20 +116,24 @@ def is_reply(message_text: str) -> Tuple[Optional[str], Optional[str]]:
     return None, None
 
 
-@dp.message_handler(content_types=[ContentType.PHOTO])
-async def post_photo(message: BotMessage):
-    file_id = message.photo[-1].file_id
-    local_file_name = Path(f'./files/{file_id}.png')
-    await bot.download_file_by_id(file_id=file_id, destination=local_file_name)
+def webp_to_png(webp_file_path: Path) -> Path:
+    img = Image.open(webp_file_path)
+    img.convert('RGBA')
+    png_file_path = webp_file_path.parent / (webp_file_path.stem + '.png')
+    img.save(png_file_path, 'png')
 
+    return png_file_path
+
+
+async def send_media(message: BotMessage, local_file_path: Path):
+    data = {
+        'token': SLACK_BOT_TOKEN,
+        "channels": OZONACH_CHANNEL,
+        'initial_comment': message.caption if message.caption else ''
+    }
     async with ClientSession() as session:
-        data = {
-            'token': SLACK_BOT_TOKEN,
-            "channels": OZONACH_CHANNEL,
-            'initial_comment': message.caption if message.caption else ''
-        }
         form = FormData(data)
-        form.add_field('file', open(local_file_name, 'rb'))
+        form.add_field('file', open(local_file_path, 'rb'))
 
         async with session.post('https://slack.com/api/files.upload', data=form) as response:
             response_data = await response.json()
@@ -139,7 +144,24 @@ async def post_photo(message: BotMessage):
                 Message.create(ts=float(photo_message_ts), success=True)
             else:
                 Message.create(ts=datetime.now().timestamp(), success=False)
-            local_file_name.unlink()
+
+
+@dp.message_handler(content_types=[ContentType.STICKER])
+async def sticker_handler(message: BotMessage):
+    file_id = message.sticker.file_id
+    local_file_name = Path(f'./files/{file_id}.webp')
+    await bot.download_file_by_id(file_id=file_id, destination=local_file_name)
+    png_file_path = webp_to_png(local_file_name)
+    await send_media(message, png_file_path)
+
+
+@dp.message_handler(content_types=[ContentType.PHOTO])
+async def post_photo(message: BotMessage):
+    file_id = message.photo[-1].file_id
+    local_file_path = Path(f'./files/{file_id}.jpeg')
+    await bot.download_file_by_id(file_id=file_id, destination=local_file_path)
+    await send_media(message, local_file_path)
+    local_file_path.unlink()
 
 
 @dp.message_handler(content_types=[ContentType.TEXT])
