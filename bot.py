@@ -148,7 +148,7 @@ async def send_media(message: BotMessage, local_file_path: Path):
 
 @dp.message_handler(content_types=[ContentType.STICKER])
 async def sticker_handler(message: BotMessage):
-    file_id = message.sticker.file_id
+    file_id = message.sticker.thumb.file_id  # message.sticker.file_id -- full size
     local_file_name = Path(f'./files/{file_id}.webp')
     await bot.download_file_by_id(file_id=file_id, destination=local_file_name)
     png_file_path = webp_to_png(local_file_name)
@@ -169,7 +169,8 @@ async def post_message(message: BotMessage):
     async with ClientSession(headers=HEADERS) as session:
         data = {
             "channel": OZONACH_CHANNEL,
-            "text": message.text
+            "text": message.text,
+            'initial_comment': message.caption if message.caption else ''
         }
 
         thread_ts, message_text = is_reply(message.text)
