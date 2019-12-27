@@ -106,7 +106,7 @@ def is_reply(message_text: str) -> Tuple[Optional[str], Optional[str]]:
     if result:
         channel_token, message_ts = result.group(0).split('/')
         # cut link to thread
-        new_message_text = re.sub(r'(https://ozon.slack.com/archives/\w+/p\d+)', '', message_text)
+        new_message_text = re.sub(r'(https://ozon.slack.com/archives/\w+/p\d+(\?[\S]+)?)', '', message_text)
 
         # p1234567890123456 -> 1234567890.123456
         buf = message_ts.lstrip('p')
@@ -153,6 +153,7 @@ async def sticker_handler(message: BotMessage):
     await bot.download_file_by_id(file_id=file_id, destination=local_file_name)
     png_file_path = webp_to_png(local_file_name)
     await send_media(message, png_file_path)
+    png_file_path.unlink()
 
 
 @dp.message_handler(content_types=[ContentType.PHOTO])
